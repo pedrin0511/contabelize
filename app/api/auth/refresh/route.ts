@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { generateAccessToken, JwtPayload } from '@/lib/auth'
-import { validateSession } from '@/lib/session'
+import { validateSession, deleteSession } from '@/lib/session'
 
 export async function POST(request: NextRequest) {
   try {
     const refreshToken = request.cookies.get('refresh_token')?.value
 
     if (!refreshToken) {
-      return NextResponse.json({ error: 'Refresh token not found' }, { status: 401 })
+      console.log('Refresh token not found')
+      const response = NextResponse.json({ error: 'Refresh token not found' }, { status: 401 })
+      response.cookies.delete('access_token')
+      response.cookies.delete('refresh_token')
+      return response
     }
 
     const session = await validateSession(refreshToken)
     if (!session) {
-      return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 })
+      console.log('Sessão inválida ou expirada')
+      const response = NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 })
+      response.cookies.delete('access_token')
+      response.cookies.delete('refresh_token')
+      return response
     }
 
     const { data: office, error } = await supabase
@@ -23,7 +31,12 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error || !office) {
-      return NextResponse.json({ error: 'Office not found' }, { status: 401 })
+      console.log('Escritório não encontrado')
+      await deleteSession(refreshToken)
+      const response = NextResponse.json({ error: 'Office not found' }, { status: 401 })
+      response.cookies.delete('access_token')
+      response.cookies.delete('refresh_token')
+      return response
     }
 
     const payload: JwtPayload = {
@@ -33,8 +46,20 @@ export async function POST(request: NextRequest) {
 
     const accessToken = generateAccessToken(payload)
 
-    return NextResponse.json({ accessToken })
+    const response = NextResponse.json({ accessToken })
+    response.cookies.set({
+      name: 'access_token',
+      value: accessToken,
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60,
+      path: '/',
+    })
+ 
+    return response
   } catch (error) {
+    console.log(error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

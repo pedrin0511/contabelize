@@ -21,7 +21,7 @@ export async function GET(
       .from('services')
       .select(`
         *,
-        clients:client_id (id, name, due_day, document)
+        clients:client_id (id, name, due_day, document, telefone)
       `)
       .eq('id', id)
       .eq('clients.office_id', payload.officeId)

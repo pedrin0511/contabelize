@@ -20,6 +20,7 @@ interface Service {
     name: string
     due_day: number | null
     document: string | null
+    telefone: string | null
   }
 }
 
@@ -51,11 +52,33 @@ export default function ServiceDetailPage() {
   const [loading, setLoading] = useState(true)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [newPayment, setNewPayment] = useState({ amount: '', dueDate: '' })
-  const [processing, setProcessing] = useState<string | null>(null)
+const [processing, setProcessing] = useState<string | null>(null)
+const [actionProcessing, setActionProcessing] = useState<{id: string, action: string} | null>(null)
+const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editDueDate, setEditDueDate] = useState('')
 
   useEffect(() => {
     if (params.id) fetchServiceData(params.id as string)
   }, [params.id])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement
+      if (!target.closest('[data-dropdown]')) {
+        setActiveDropdown(null)
+      }
+    }
+
+    if (activeDropdown !== null) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [activeDropdown])
 
   async function fetchServiceData(id: string) {
     try {
@@ -142,7 +165,7 @@ export default function ServiceDetailPage() {
   }
 
   async function handleMarkAsPaid(paymentId: string) {
-    setProcessing(paymentId)
+    setActionProcessing({id: paymentId, action: 'paid'})
     try {
       const token = document.cookie.replace(
         /(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/,
@@ -163,8 +186,120 @@ export default function ServiceDetailPage() {
     } catch {
       toast.error('Erro ao conectar com o servidor')
     } finally {
-      setProcessing(null)
+      setActionProcessing(null)
     }
+  }
+
+  async function handleRevertPayment(paymentId: string) {
+    setActionProcessing({id: paymentId, action: 'revert'})
+    try {
+      const token = document.cookie.replace(
+        /(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/,
+        '$1'
+      )
+
+      const res = await fetch(`/api/payments/${paymentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'revert' }),
+      })
+
+      if (res.ok) {
+        toast.success('Pagamento revertido para pendente!')
+        setActiveDropdown(null)
+        if (params.id) fetchPayments(params.id as string)
+      } else {
+        toast.error('Erro ao reverter pagamento')
+      }
+    } catch {
+      toast.error('Erro ao conectar com o servidor')
+    } finally {
+      setActionProcessing(null)
+    }
+  }
+
+  async function handleDeletePayment(paymentId: string) {
+    if (!confirm('Tem certeza que deseja excluir este pagamento?')) return
+
+    setActionProcessing({id: paymentId, action: 'delete'})
+    try {
+      const token = document.cookie.replace(
+        /(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/,
+        '$1'
+      )
+
+      const res = await fetch(`/api/payments/${paymentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (res.ok) {
+        toast.success('Pagamento excluir!')
+        setActiveDropdown(null)
+        if (params.id) fetchPayments(params.id as string)
+      } else {
+        toast.error('Erro ao excluir pagamento')
+      }
+    } catch {
+      toast.error('Erro ao conectar com o servidor')
+    } finally {
+      setActionProcessing(null)
+    }
+  }
+
+  async function handleEditPayment(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingPayment || !editAmount || !editDueDate) {
+      toast.error('Preencha todos os campos')
+      return
+    }
+
+    setActionProcessing({id: editingPayment.id, action: 'edit'})
+    try {
+      const token = document.cookie.replace(
+        /(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/,
+        '$1'
+      )
+
+      const res = await fetch(`/api/payments/${editingPayment.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: Number(editAmount),
+          due_date: editDueDate,
+        }),
+      })
+
+      if (res.ok) {
+        toast.success('Pagamento atualizado!')
+        setEditingPayment(null)
+        setActiveDropdown(null)
+        if (params.id) fetchPayments(params.id as string)
+      } else {
+        toast.error('Erro ao atualizar pagamento')
+      }
+    } catch {
+      toast.error('Erro ao conectar com o servidor')
+    } finally {
+      setActionProcessing(null)
+    }
+  }
+
+  function openEditModal(payment: Payment) {
+    setEditingPayment(payment)
+    setEditAmount(payment.amount.toString())
+    setEditDueDate(payment.due_date)
+    setActiveDropdown(null)
+  }
+
+  function formatDateTime(dateStr: string) {
+    return new Date(dateStr).toLocaleString('pt-BR')
   }
 
   async function handleCreatePayment(e: React.FormEvent) {
@@ -207,7 +342,7 @@ export default function ServiceDetailPage() {
   }
 
   function formatDate(dateStr: string) {
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR')
+    return new Date(dateStr).toLocaleDateString('pt-BR')
   }
 
   function getMonthName(refMonth: string | null) {
@@ -220,10 +355,25 @@ export default function ServiceDetailPage() {
     return `${months[parseInt(month) - 1]}/${year}`
   }
 
+  function getWhatsAppLink(payment: Payment) {
+    const client = Array.isArray(service?.clients) ? service.clients[0] : service?.clients
+    if (!client?.telefone) return null
+    const phone = String(client.telefone).replace(/\D/g, '')
+    const clientName = client.name
+    const month = getMonthName(payment.reference_month)
+    const amount = formatCurrency(payment.amount)
+    const dueDate = formatDate(payment.due_date)
+    const status = payment.status === 'late' ? 'atrasado' : 'pendente'
+    const message = `Olá ${clientName}, seu pagamento referente a ${month} no valor de ${amount} está ${status}. Vencimento: ${dueDate}. Por favor, regularize sua situação.`
+    const encodedMessage = encodeURIComponent(message)
+    return `https://wa.me/${phone}?text=${encodedMessage}`
+  }
+
   if (loading) return <Loading message="Carregando serviço..." />
   if (!service) return null
 
   return (
+    <>
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -430,21 +580,70 @@ export default function ServiceDetailPage() {
                               : 'Pendente'}
                           </span>
                           {payment.paid_at && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Pago em {formatDate(payment.paid_at)}
-                            </p>
-                          )}
+                             <p className="text-xs text-gray-500 mt-1">
+                               Pago em {formatDateTime(payment.paid_at)}
+                             </p>
+                           )}
                         </td>
                         <td className="px-4 py-3">
-                          {payment.status !== 'paid' && (
-                            <button
-                              onClick={() => handleMarkAsPaid(payment.id)}
-                              disabled={processing === payment.id}
-                              className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50"
-                            >
-                              {processing === payment.id ? 'Processando...' : 'Marcar como Pago'}
-                            </button>
-                          )}
+                          <div className="flex items-center space-x-2">
+                            {payment.status !== 'paid' && (
+                              <button
+                                onClick={() => handleMarkAsPaid(payment.id)}
+                                disabled={actionProcessing?.id === payment.id}
+                                className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50"
+                              >
+                                {actionProcessing?.id === payment.id && actionProcessing?.action === 'paid' ? 'Processando...' : 'Marcar como Pago'}
+                              </button>
+                            )}
+                            {getWhatsAppLink(payment) && (
+                              <a
+                                href={getWhatsAppLink(payment)!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1 text-xs font-medium text-white bg-green-500 rounded hover:bg-green-600 inline-block"
+                              >
+                                WhatsApp
+                              </a>
+                            )}
+                            <div className="relative" data-dropdown="true">
+                              <button
+                                onClick={() =>
+                                  setActiveDropdown(activeDropdown === payment.id ? null : payment.id)
+                                }
+                                className="p-1 hover:bg-gray-200 rounded text-gray-600 font-bold"
+                              >
+                                ⋮
+                              </button>
+                              {activeDropdown === payment.id && (
+                                <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                                  <button
+                                    onClick={() => openEditModal(payment)}
+                                    disabled={actionProcessing?.id === payment.id}
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                                  >
+                                    {actionProcessing?.id === payment.id && actionProcessing?.action === 'edit' ? 'Carregando...' : 'Editar'}
+                                  </button>
+                                  {payment.status === 'paid' && (
+                                    <button
+                                      onClick={() => handleRevertPayment(payment.id)}
+                                      disabled={actionProcessing?.id === payment.id}
+                                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                                    >
+                                      {actionProcessing?.id === payment.id && actionProcessing?.action === 'revert' ? 'Carregando...' : 'Reverter para não pago'}
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleDeletePayment(payment.id)}
+                                    disabled={actionProcessing?.id === payment.id}
+                                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                  >
+                                    {actionProcessing?.id === payment.id && actionProcessing?.action === 'delete' ? 'Carregando...' : 'Excluir'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -456,5 +655,59 @@ export default function ServiceDetailPage() {
         </div>
       </div>
     </div>
+  
+    {editingPayment && (
+      <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Editar Pagamento</h3>
+          <form onSubmit={handleEditPayment}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Valor (R$)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                required
+                value={editAmount ? formatCurrency(Number(editAmount)) : ''}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, '')
+                  const number = Number(raw) / 100
+                  setEditAmount(isNaN(number) ? '' : number.toString())
+                }}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
+                placeholder="0,00"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Data de Vencimento</label>
+              <input
+                type="date"
+                required
+                value={editDueDate}
+                onChange={(e) => setEditDueDate(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+              />
+            </div>
+            <div className="flex space-x-2">
+              <button
+                type="submit"
+                disabled={actionProcessing?.id === editingPayment.id}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {actionProcessing?.id === editingPayment.id ? 'Salvando...' : 'Salvar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingPayment(null)}
+                disabled={actionProcessing?.id === editingPayment.id}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

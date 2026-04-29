@@ -34,6 +34,7 @@ create table clients (
   office_id uuid references offices(id) on delete cascade,
   name text not null,
   document text,
+  telefone text,
   due_day int check (due_day >= 1 and due_day <= 31),
   created_at timestamp default now()
 );

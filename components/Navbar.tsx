@@ -25,7 +25,7 @@ export default function Navbar() {
               onClick={() => router.push('/home')}
               className="text-xl font-bold text-gray-900 dark:text-white tracking-tight hover:opacity-70 transition-opacity"
             >
-              Valdene
+              Contabelize
             </button>
             <div className="hidden sm:flex sm:space-x-1">
               <button

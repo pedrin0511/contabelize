@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const { data: clients, error } = await supabase
       .from('clients')
-      .select('id, name, document, due_day, created_at')
+      .select('id, name, document, telefone,due_day, created_at')
       .eq('office_id', payload.officeId)
       .order('created_at', { ascending: false })
 
@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, document, due_day } = body
+    
+    const { name, document, due_day,telefone } = body
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -60,6 +61,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (telefone  !== undefined && telefone  !== null) {
+      if (telefone.length < 10 || telefone.length > 11) {
+        return NextResponse.json({ error: 'Telefone deve ter entre 10 e 11 dígitos' }, { status: 400 })
+      }
+    }
+
     const { data: client, error } = await supabase
       .from('clients')
       .insert({
@@ -67,8 +74,9 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         document: document?.trim() || null,
         due_day: due_day ?? null,
+        telefone: telefone || null,
       })
-      .select('id, name, document, due_day, created_at')
+      .select('id, name, document, due_day, telefone, created_at')
       .single()
 
     if (error) {
@@ -76,7 +84,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ client }, { status: 201 })
-  } catch {
+  } catch (error) {
+    console.log(error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

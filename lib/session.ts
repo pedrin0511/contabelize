@@ -34,9 +34,8 @@ export async function findSessionByRefreshToken(refreshToken: string) {
     .from('sessions')
     .select('*')
     .eq('refresh_token', refreshToken)
-    .eq('revoked', false)
     .single()
-
+  console.log("error", error  )
   if (error || !data) return null
   return data
 }

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Valdene",
+  title: "Contabelize",
   description: "Sistema de gestão para clínicas",
 };
 

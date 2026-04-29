@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import Navbar from '@/components/Navbar'
 import Loading from '@/components/Loading'
 import { formatCurrency } from '@/lib/utils'
+import { fetchWithRefresh } from '@/lib/api'
 
 interface Service {
   id: string
@@ -29,14 +30,7 @@ export default function ServicesPage() {
 
   async function fetchServices() {
     try {
-      const token = document.cookie.replace(
-        /(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/,
-        '$1'
-      )
-
-      const res = await fetch('/api/services', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetchWithRefresh('/api/services')
 
       if (!res.ok) {
         router.push('/login')
@@ -56,14 +50,8 @@ export default function ServicesPage() {
     if (!confirm('Tem certeza que deseja excluir este serviço?')) return
 
     try {
-      const token = document.cookie.replace(
-        /(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/,
-        '$1'
-      )
-
-      const res = await fetch(`/api/services/${id}`, {
+      const res = await fetchWithRefresh(`/api/services/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       })
 
       if (res.ok) {

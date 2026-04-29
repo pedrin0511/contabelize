@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import StatsCards from './StatsCards'
 import RevenueChart from './RevenueChart'
+import { fetchWithRefresh } from '@/lib/api'
 
 interface DashboardData {
   total_received: number
@@ -30,14 +31,7 @@ export const DashBoard = () => {
 
   async function fetchDashboard() {
     try {
-      const token = document.cookie.replace(
-        /(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/,
-        '$1'
-      )
-
-      const res = await fetch('/api/dashboard', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetchWithRefresh('/api/dashboard')
 
       if (!res.ok) {
         toast.error('Erro ao carregar dashboard')

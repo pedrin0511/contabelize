@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Navbar from '@/components/Navbar'
+import { cleanPhone, FormatarNumero } from '@/utils/formatarNumero'
 
 function maskDocument(value: string): string {
   const digits = value.replace(/\D/g, '')
@@ -28,6 +29,7 @@ function validateDocument(doc: string): boolean {
 export default function NewClientPage() {
   const router = useRouter()
   const [name, setName] = useState('')
+  const [telefone, setTelefone] = useState('')
   const [clientDocument, setClientDocument] = useState('')
   const [dueDay, setDueDay] = useState('')
   const [loading, setLoading] = useState(false)
@@ -47,6 +49,10 @@ export default function NewClientPage() {
     if (dueDay && (Number(dueDay) < 1 || Number(dueDay) > 31)) {
       newErrors.dueDay = 'Dia deve estar entre 1 e 31'
     }
+
+    if (!telefone.trim() && telefone.length < 10) {
+      newErrors.telefone = 'Telefone deve ter pelo menos 10 dígitos'
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -65,6 +71,7 @@ export default function NewClientPage() {
       const body: Record<string, string | number> = { name: name.trim() }
       if (clientDocument.trim()) body.document = clientDocument.trim()
       if (dueDay) body.due_day = Number(dueDay)
+      if (telefone.trim()) body.telefone = telefone.trim()
 
       const res = await fetch('/api/clients', {
         method: 'POST',
@@ -148,6 +155,29 @@ export default function NewClientPage() {
                 />
                 {errors.document && (
                   <p className="mt-1 text-sm text-red-600">{errors.document}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="telefone" className="block text-sm font-medium text-gray-700">
+                  Telefone *
+                </label>
+                <input
+                  id="telefone"
+                  type="text"
+                  required
+                  value={FormatarNumero(telefone)}
+                  onChange={(e) => {
+                    setTelefone(cleanPhone(e.target.value))
+                    setErrors((prev) => ({ ...prev, telefone: '' }))
+                  }}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 placeholder-gray-400 ${
+                    errors.telefone ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Telefone do cliente"
+                />
+                {errors.telefone && (
+                  <p className="mt-1 text-sm text-red-600">{errors.telefone}</p>
                 )}
               </div>
 

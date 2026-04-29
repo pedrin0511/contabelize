@@ -10,6 +10,7 @@ interface Client {
   id: string
   name: string
   document: string | null
+  telefone: string | null
   due_day: number | null
   created_at: string
 }
@@ -123,6 +124,12 @@ export default function ClientDetailPage() {
                 <div>
                   <dt className="text-sm font-medium text-gray-500">Documento</dt>
                   <dd className="mt-1 text-sm text-gray-900">{client.document}</dd>
+                </div>
+              )}
+              {client.telefone && (
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Telefone</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{client.telefone}</dd>
                 </div>
               )}
               {client.due_day && (

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import Loading from '@/components/Loading'
 import { DashBoard } from './components/dashboard'
+import { fetchWithRefresh } from '@/lib/api'
 
 export default function HomePage() {
   const router = useRouter()
@@ -12,11 +13,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/auth/me', {
-      headers: {
-        Authorization: `Bearer ${document.cookie.replace(/(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/, '$1')}`,
-      },
-    })
+    fetchWithRefresh('/api/auth/me')
       .then(res => {
         if (!res.ok) {
           router.push('/login')
@@ -44,7 +41,7 @@ export default function HomePage() {
   else if (currentHour >= 18) greeting = 'Boa noite'
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
+    <div className="min-h-screen bg-black">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="mb-8 md:mb-12">

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Navbar from '@/components/Navbar'
 import Loading from '@/components/Loading'
+import { cleanPhone, FormatarNumero } from '@/utils/formatarNumero'
 
 function maskDocument(value: string): string {
   const digits = value.replace(/\D/g, '')
@@ -30,6 +31,7 @@ interface Client {
   id: string
   name: string
   document: string | null
+  telefone: string | null
   due_day: number | null
 }
 
@@ -37,6 +39,7 @@ export default function EditClientPage() {
   const params = useParams()
   const router = useRouter()
   const [name, setName] = useState('')
+  const [telefone, setTelefone] = useState('')
   const [clientDocument, setClientDocument] = useState('')
   const [dueDay, setDueDay] = useState('')
   const [loading, setLoading] = useState(false)
@@ -67,6 +70,7 @@ export default function EditClientPage() {
       const data = await res.json()
       const client = data.client
       setName(client.name || '')
+      setTelefone(client.telefone || '')
       setClientDocument(client.document || '')
       setDueDay(client.due_day?.toString() || '')
     } catch {
@@ -90,6 +94,9 @@ export default function EditClientPage() {
     if (dueDay && (Number(dueDay) < 1 || Number(dueDay) > 31)) {
       newErrors.dueDay = 'Dia deve estar entre 1 e 31'
     }
+    if (telefone && telefone.length < 10) {
+      newErrors.telefone = 'Telefone deve ter pelo menos 10 dígitos'
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -106,6 +113,7 @@ export default function EditClientPage() {
       )
 
       const body: Record<string, string | number> = { name: name.trim() }
+      if (telefone.trim()) body.telefone = telefone.trim()
       if (clientDocument.trim()) body.document = clientDocument.trim()
       if (dueDay) body.due_day = Number(dueDay)
 
@@ -173,6 +181,28 @@ export default function EditClientPage() {
                 />
                 {errors.name && (
                   <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="telefone" className="block text-sm font-medium text-gray-700">
+                  Telefone
+                </label>
+                <input
+                  id="telefone"
+                  type="text"
+                  value={FormatarNumero(telefone)}
+                  onChange={(e) => {
+                    setTelefone(cleanPhone(e.target.value))
+                    setErrors((prev) => ({ ...prev, telefone: '' }))
+                  }}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 placeholder-gray-400 ${
+                    errors.telefone ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Telefone do cliente"
+                />
+                {errors.telefone && (
+                  <p className="mt-1 text-sm text-red-600">{errors.telefone}</p>
                 )}
               </div>
 

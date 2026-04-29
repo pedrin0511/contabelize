@@ -23,7 +23,7 @@ export async function GET(
 
     const { data: client, error } = await supabase
       .from('clients')
-      .select('id, name, document, due_day, created_at')
+      .select('id, name, document, telefone,due_day, created_at')
       .eq('id', id)
       .eq('office_id', payload.officeId)
       .single()
@@ -57,7 +57,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { name, document, due_day } = body
+    const { name, document, due_day, telefone } = body
 
     if (name !== undefined) {
       if (typeof name !== 'string' || name.trim().length === 0) {
@@ -72,17 +72,24 @@ export async function PUT(
       }
     }
 
+    if (telefone !== undefined && telefone !== null) {
+      if (telefone.length < 10 || telefone.length > 11) {
+        return NextResponse.json({ error: 'Telefone deve ter entre 10 e 11 dígitos' }, { status: 400 })
+      }
+    }
+
     const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name.trim()
     if (document !== undefined) updateData.document = document?.trim() || null
     if (due_day !== undefined) updateData.due_day = due_day
+    if (telefone !== undefined) updateData.telefone = telefone || null
 
     const { data: client, error } = await supabase
       .from('clients')
       .update(updateData)
       .eq('id', id)
       .eq('office_id', payload.officeId)
-      .select('id, name, document, due_day, created_at')
+      .select('id, name, document, telefone, due_day, created_at')
       .single()
 
     if (error || !client) {

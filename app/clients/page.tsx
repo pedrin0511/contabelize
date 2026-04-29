@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Navbar from '@/components/Navbar'
 import Loading from '@/components/Loading'
+import { fetchWithRefresh } from '@/lib/api'
 
 interface Client {
   id: string
@@ -12,6 +13,7 @@ interface Client {
   document: string | null
   due_day: number | null
   created_at: string
+  telefone: string | null
 }
 
 export default function ClientsPage() {
@@ -25,14 +27,7 @@ export default function ClientsPage() {
 
   async function fetchClients() {
     try {
-      const token = document.cookie.replace(
-        /(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/,
-        '$1'
-      )
-
-      const res = await fetch('/api/clients', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetchWithRefresh('/api/clients')
 
       if (!res.ok) {
         router.push('/login')
@@ -52,14 +47,8 @@ export default function ClientsPage() {
     if (!confirm('Tem certeza que deseja excluir este cliente?')) return
 
     try {
-      const token = document.cookie.replace(
-        /(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/,
-        '$1'
-      )
-
-      const res = await fetch(`/api/clients/${id}`, {
+      const res = await fetchWithRefresh(`/api/clients/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       })
 
       if (res.ok) {
@@ -109,7 +98,10 @@ export default function ClientsPage() {
                             {client.name}
                           </button>
                           {client.document && (
-                            <p className="text-sm text-gray-500">{client.document}</p>
+                            <p className="text-sm text-gray-500">CPF/CNPJ: {client.document}</p>
+                          )}
+                          {client.telefone && (
+                            <p className="text-sm text-gray-500">Telefone: {client.telefone}</p>
                           )}
                           {client.due_day && (
                             <p className="text-xs text-gray-400">
