@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
         recurrence: type === 'recurring' ? recurrence : null,
         start_date,
         end_date: end_date || null,
+        office_id: payload.officeId,
       })
       .select()
       .single()
