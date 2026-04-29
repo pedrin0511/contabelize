@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         *,
         clients:client_id (id, name)
       `)
-      .eq('clients.office_id', payload.officeId)
+      .eq('office_id', payload.officeId)
 
     if (clientId) {
       query = query.eq('client_id', clientId)
